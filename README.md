@@ -3,12 +3,12 @@
 # Processamento de um neurônio
 `Y_inj = bj + ∑(xi*wij)`
 
-`yj = f(Y_inj)`
+`yj = f(y_inj)`
 
 - x = entradas do neurônio j
 - wij = pesos nas conexões entre cada entrada i e o neurônio j
 - bj = um bias
-- Y_inj = entrada total no neurônio j
+- y_inj = entrada total no neurônio j
 - f(Y_inj) = função de ativação
 - yj = saída no neurônio j
 
@@ -33,8 +33,12 @@ else
 - b(old) = bias antigo
 
 
+# Condição de parada do treinamento 
+Se nenhum peso mudou na época, pare; senão continue.
 
 
+## Backpropagation
+`ej(n) = dj(n) - yj(n)`
 
 # Feed Forward 
 

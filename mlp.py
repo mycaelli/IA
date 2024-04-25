@@ -12,11 +12,11 @@ class MLP:
     def __init__(self, input_size, hidden_size, output_size, learning_rate):
         """Inicializa a rede neural com uma camada oculta."""
         # Inicializando pesos e bias
-        self.weights_input_to_hidden = matrix.initialize_matrix(input_size, hidden_size)
-        self.weights_hidden_to_output = matrix.initialize_matrix(hidden_size, output_size)
-        self.bias_hidden = matrix.initialize_matrix(1, hidden_size)
-        self.bias_output = matrix.initialize_matrix(1, output_size)
-        self.learning_rate = learning_rate
+        self.hidden_weights = matrix.initialize_matrix(input_size, hidden_size)
+        self.output_weights = matrix.initialize_matrix(hidden_size, output_size)
+        # self.hidden_bias = matrix.initialize_matrix(1, hidden_size)
+        # self.output_bias = matrix.initialize_matrix(1, output_size)
+        self.learning_rate = learning_rate # de 0 a 1
 
     '''
         propaga os dados pela rede neural -> é o que da o output da rede
@@ -25,19 +25,27 @@ class MLP:
 
         P/ cada camada
         saída = F(Dados de entrada x Pesos) + Bias, onde F é a função de ativação
+
+        z_1 = np.dot(X, W_1) # multiplica dados de entrada com pesos da primeira camada
+
+        h_1 = 1 / (1 + np.exp(-z_1)) # produz os valores de ativação da camada oculta
+
+        y_hat = np.dot(h_1, W_2) # multiplica os valores de ativacao da camada oculta pelos pesos da camada de saida
+
+        L = np.sum(y_hat**2) # loss: calcula a funcao de perda entre as previsões y_hat e os rótulos reais (L contém o valor da função de perda)
     '''
     def feedforward(self, X):
         """Executa uma passagem para frente na rede."""
 
-        # Calcula a saída da camada oculta
-        hidden_layer_input = matrix.array_product(X, self.weights_input_to_hidden) # + self.bias_hidden
-        hidden_layer_output =  matrix.apply_function(function.sigmoid, hidden_layer_input)
+        hidden_input = matrix.array_product(X, self.hidden_weights)
 
-        # Calcula a saida da camada de saida
-        output_layer_input = matrix.array_product(hidden_layer_output, self.weights_hidden_to_output) # + self.bias_hidden
-        predicted_output = matrix.apply_function(function.sigmoid, output_layer_input)
+        hidden_output = function.sigmoid(hidden_input)
 
-        return hidden_layer_output, predicted_output
+        exit_input = matrix.array_product(hidden_output, self.output_weights)
+
+        exit_prediction = function.sigmoid(exit_input)
+
+        return exit_prediction, hidden_output
     
     '''
         calcula os gradiented dos pesos da rede em relação ao erro da saida
@@ -45,32 +53,49 @@ class MLP:
 
         error = true_output - predicted_output
         delta = erro * derivada da funcao de ativacao
+
+        dy_hat = 2.0 * y_hat # calcula o gradiente da função de perda entre as previsões y_hat (o gradiente é 2 * erro)
+
+        dW2 = h_1.T.dot(dy_hat) # calcula o gradiente da função de perda em relação aos pesos da camada de saida, onde h_1 = valores de ativação da camada oculta e dy_hat é o gradiente da função de perda
+
+        dh1 = dy_hat.dot(W_2.T) # calcula o gradiente da função de perda em relação aos valores de ativação da camada oculta (h_1), onde W_2 é o peso da camada de saída
+
+        dz1 = dh1 * h_1 * (1 - h_1) # Calcula o gradiente em relação aos valores de entrada da camada oculta z_1, usando a derivada da função sigmoid
+
+        dW1 = X.T.dot(dz1) # calcula o gradiente da função de perda em relação aos pesos da primeira camada W_1, onde dz1 são os valores de entrada da camada oculta
     '''
-    def backpropagate(self, true_output, hidden_layer_output, predicted_output):
+    def backpropagate(self, exit_prediction, hidden_output, input_data):
         """Executa o algoritmo de backpropagation para calcular os gradientes."""
 
-        # Calcula o erro da camada de saída
-        output_error = matrix.elementwise_subtraction(matrix.transpose(true_output), predicted_output)
-        output_delta = output_error * function.sigmoid_derivative(predicted_output)
-        
-        # Calcula o erro da camada oculta
-        hidden_error = matrix.array_product(output_delta, matrix.transpose(self.weights_hidden_to_output))
-        hidden_delta = hidden_error * function.sigmoid_derivative(hidden_layer_output)
+        gradient_loss_prediction = 2.0 * exit_prediction
 
-        return output_delta, hidden_delta
+        gradient_output_layer_weights = matrix.array_product(matrix.transpose(hidden_output), gradient_loss_prediction)
+
+        gradient_activation_hidden_layer = matrix.array_product(gradient_loss_prediction, matrix.transpose(self.output_weights))
+
+        gradient_input_hidden_layer = gradient_activation_hidden_layer * function.sigmoid_derivative(hidden_output)
+
+        gradient_hidden_layer_weights = matrix.array_product(matrix.transpose(input_data), gradient_input_hidden_layer)
+
+
+
+        return gradient_hidden_layer_weights, gradient_output_layer_weights
     
-    # entender essa funcao
-    def update_weights(self, X, output_delta, hidden_delta, hidden_layer_output):
+    '''
+        W1 -= alpha * dW1 # W1 pesos da camada de entrada a camada oculta
+        W2 -= alpha * dW2 # W2 pesos da camada oculta a saida
+    '''
+    def update_weights(self, gradient_hidden_layer_weights, gradient_output_layer_weights):
 
-        self.weights_hidden_to_output += matrix.array_product(matrix.transpose(hidden_layer_output), output_delta) * self.learning_rate
-        self.bias_output += matrix.sum(output_delta, axis=0, keepdims=True) * self.learning_rate
-        self.weights_input_to_hidden += matrix.array_product(matrix.transpose(X), hidden_delta) * self.learning_rate
-        self.bias_hidden += matrix.sum(hidden_delta, axis=0, keepdims=True) * self.learning_rate
+
+        self.hidden_weights -= gradient_hidden_layer_weights * self.learning_rate
+        self.output_weights -= gradient_output_layer_weights * self.learning_rate
+        # fazer pro bias
+
 
     '''''
         X: input data
         y: expected output
-
     '''
     def train(self, input_data, expected_output, epochs):
         loss_values = []
@@ -78,12 +103,29 @@ class MLP:
         precision_values = []
         recall_values = []
         for epoch in range(epochs):
-            hidden_layer_output, predicted_output = self.feedforward(input_data)  # Passagem para frente
-            loss, accuracy, precision, recall = metrics.calculate_metrics(predicted_output, expected_output)
-            loss_values.append(loss), accuracy_values.append(accuracy), precision_values.append(precision), recall_values.append(recall)
-            if (expected_output == predicted_output).all(): # VERIFICAR SE PODE USAR ALL AQUI, é numpy
-                print('UHUUUU')
-            else:
-                output_delta, hidden_delta = self.backpropagate(matrix.transpose(expected_output), hidden_layer_output, predicted_output)  # Passagem para trás
-                self.update_weights(input_data, output_delta, hidden_delta, hidden_layer_output)
-        plot.plot_loss(loss_values, epoch, self.learning_rate), plot.plot_metrics(accuracy_values, precision_values, recall_values, epoch, self.learning_rate)
+            # aprendizado
+            old_hidden_weights = self.hidden_weights.copy()
+            old_output_weights = self.output_weights.copy()
+            output_prediction, hidden_output  = self.feedforward(input_data)  # Passagem para frente
+            g_h_layer_weights, g_o_layer_weights = self.backpropagate(output_prediction, hidden_output, input_data)  # Passagem para trás
+            self.update_weights(g_h_layer_weights,  g_o_layer_weights)
+
+            
+            print('expected_output, output_prediction')
+            print(expected_output)
+            print(output_prediction)
+            # metrica
+            loss, accuracy, precision, recall = metrics.calculate_metrics(output_prediction, expected_output)
+            print('Epoch: ',epoch, ':' , loss, accuracy, precision, recall)
+            print('-----------------------------')
+            loss_values.append(loss)
+            accuracy_values.append(accuracy)
+            precision_values.append(precision)
+            recall_values.append(recall)
+            
+            
+            if (old_hidden_weights == self.hidden_weights).all() and  (old_output_weights == self.output_weights).all():
+                break
+        plot.plot_loss(loss_values, epoch, self.learning_rate)
+        plot.plot_metrics(accuracy_values, precision_values, recall_values, epoch, self.learning_rate)
+        plot.plot_confusion_matrix(output_prediction, expected_output, epoch, self.learning_rate)
