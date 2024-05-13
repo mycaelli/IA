@@ -1,44 +1,39 @@
 # Rede Neural
 
-# Processamento de um neurônio
-`Y_inj = bj + ∑(xi*wij)`
+## Feedfoward
+  - cada unidade escondida somas suas entradas ponderadas e aplica a função de ativação para computar sua saída, a enviando para a próxima camada
 
-`yj = f(y_inj)`
+  ```
+    aux_camada_escondida = bias_camada_escondida + ∑ entrada_camada_escondida x peso_camada_escondida
 
-- x = entradas do neurônio j
-- wij = pesos nas conexões entre cada entrada i e o neurônio j
-- bj = um bias
-- y_inj = entrada total no neurônio j
-- f(Y_inj) = função de ativação
-- yj = saída no neurônio j
+    saida_camada_escondida = sigmoide(aux_camada_escondida)
+  ```
 
+  - cada unidade de saída somas suas entradas ponderadas e aplica a função de ativação para calcular sua saída
 
-# Como alterar os pesos e o bias
-```
-if y != t
-  wi(new) = wi(old) + αtxi
-  b(new) = b(old) + at
-else
-  wi(new) = wi(old) 
-  b(new) = b(old)
-```
+  ```
+    aux_saida = bias_saida + ∑ saida_camada_escondida x peso_saida
 
-- y = saída do neurônio
-- t = target 
-- wi(new) = novo peso
-- wi(old) = peso antigo
-- a = taxa de aprendizado
-- xi = entrada (todos os pesos do neurônio que errou devem passar pela alteracão de peso)
-- b(new) = novo bias
-- b(old) = bias antigo
-
-
-# Condição de parada do treinamento 
-Se nenhum peso mudou na época, pare; senão continue.
-
+    output = sigmoide(aux_saida)
+  ```
 
 ## Backpropagation
-`ej(n) = dj(n) - yj(n)`
 
-# Feed Forward 
+  - cada unidade de saída considera sua saída e a saída esperada para o dado de entrada para computador o erro
+  - então calcula a correção dos pesos e bias e envia o termo de correção de erro para a camada anterior
+  ```
+  errok = (target - saídak) x derivada_sigmoide(saidak)
 
+  correcao_pesok = learning_rate x errok x entrada_neuroniok
+
+  correcao_biask = learning_rate x errok
+  ``````
+
+## Atualizacao de pesos
+  - cada unidade de saida e escondida altera seus pesos e bias
+
+  ```
+    novo_pesok = peso_antigk + correcao_pesok
+
+    novo_bias = bias_antigo + correcao_biask
+  ```

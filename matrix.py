@@ -28,13 +28,25 @@ def elementwise_subtraction(matrix_a, matrix_b):
     """Soma dois vetores ou matrizes elemento a elemento."""
     return matrix_a - matrix_b
 
-def multiply(matrix_a, matrix_b):
+def matmul(matrix_a, matrix_b):
     """Multiplica duas matrizes."""
     return np.matmul(matrix_a, matrix_b)
+
+def multiply(matrix_a, matrix_b):
+    """Multiplica duas matrizes."""
+    return np.multiply(matrix_a, matrix_b)
 
 def sum(matrix, axis=None, keepdims=False):
     """Soma todos os elementos de uma matrix (ou de um eixo)"""
     return np.sum(matrix, axis=axis, keepdims=keepdims)
+
+def add(matrix, num):
+    """executa a adição elemento a elemento entre duas matrizes ou entre uma matriz e um escalar."""
+    return np.add(matrix, num)
+
+def subtract(matrix, num):
+    """executa a subtração elemento a elemento entre duas matrizes ou entre uma matriz e um escalar."""
+    return np.subtract(matrix, num)
 
 def apply_function(func, matrix):
     """Aplica uma função a cada elemento de uma matriz."""
