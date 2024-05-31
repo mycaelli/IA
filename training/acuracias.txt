@@ -1,3 +1,0 @@
-Accuracy for AND gate: 0.75
-Accuracy for OR gate: 0.75
-Accuracy for XOR gate: 1.0
