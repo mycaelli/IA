@@ -1,0 +1,38 @@
+Explicações dos Arquivos de Saída
+
+Hiperparâmetros e Arquitetura da Rede:
+Salvar os hiperparâmetros em um arquivo de texto:
+
+hyperparameters = {
+    "input_layer_size": 120,
+    "hidden_layer_sizes": [20, 10],
+    "output_layer_size": 26,
+    "learning_rate": 0.01,
+    "epochs": 2000
+}
+with open("hyperparameters.txt", "w") as f:
+    for key, value in hyperparameters.items():
+        f.write(f"{key}: {value}\n")
+
+Pesos Iniciais da Rede:
+Salvar os pesos iniciais:
+
+np.save("initial_weights.npy", initial_weights)
+Pesos Finais da Rede:
+
+Salvar os pesos finais:
+python
+Copiar código
+np.save("final_weights.npy", final_weights)
+
+Erro Cometido pela Rede em Cada Iteração:
+Salvar os erros de treino e validação:
+
+np.save("train_errors.npy", errors)
+np.save("val_errors.npy", val_errors)
+
+Saídas Produzidas pela Rede para os Dados de Teste:
+Salvar as previsões do conjunto de teste:
+
+test_predictions = mlp.predict(X_test)
+np.save("test_predictions.npy", test_predictions)
