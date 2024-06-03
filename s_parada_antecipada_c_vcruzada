@@ -1,8 +1,6 @@
 import numpy as np
 import os
 import matplotlib.pyplot as plt
-from sklearn.model_selection import KFold
-
 
 def load_data():
     input_path = 'C:\\Users\\gui02\\Downloads\\EP IA\\IA-main\\content\\X.npy'
