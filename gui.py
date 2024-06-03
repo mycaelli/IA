@@ -200,12 +200,20 @@ plt.show()
 # Fazer previsões com o conjunto de teste
 test_predictions = mlp.predict(X_test)
 
+# Função para salvar pesos em arquivos de texto
+def save_weights_txt(filename, weights_dict):
+    with open(filename, 'w') as f:
+        for key, value in weights_dict.items():
+            f.write(f"{key}:\n")
+            np.savetxt(f, value, fmt='%f')
+            f.write("\n")
+
 # Salvar arquivos de saída
-np.save(os.path.join(output_dir, "initial_weights.npy"), initial_weights)
-np.save(os.path.join(output_dir, "final_weights.npy"), final_weights)
-np.save(os.path.join(output_dir, "train_errors.npy"), errors)
-np.save(os.path.join(output_dir, "val_errors.npy"), val_errors)
-np.save(os.path.join(output_dir, "test_predictions.npy"), test_predictions)
+save_weights_txt(os.path.join(output_dir, "initial_weights.txt"), initial_weights)
+save_weights_txt(os.path.join(output_dir, "final_weights.txt"), final_weights)
+np.savetxt(os.path.join(output_dir, "train_errors.txt"), errors, fmt='%f')
+np.savetxt(os.path.join(output_dir, "val_errors.txt"), val_errors, fmt='%f')
+np.savetxt(os.path.join(output_dir, "test_predictions.txt"), test_predictions, fmt='%f')
 
 # Salvar hiperparâmetros
 hyperparameters = {
@@ -220,7 +228,7 @@ with open(os.path.join(output_dir, "hyperparameters.txt"), "w") as f:
         f.write(f"{key}: {value}\n")
 
 # Carregar e validar dados das portas lógicas
-logic_gate_files = ['problemAND.csv', 'problemOR.csv', 'probleXOR.csv']
+logic_gate_files = ['problemAND.csv', 'problemOR.csv', 'problemXOR.csv']
 logic_gate_names = ['AND', 'OR', 'XOR']
 logic_gate_paths = [f'C:\\Users\\gui02\\Downloads\\EP IA\\IA-main\\content\\{file}' for file in logic_gate_files]
 
