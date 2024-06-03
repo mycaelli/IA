@@ -1,14 +1,15 @@
 import numpy as np
 from sklearn.metrics import accuracy_score
-from sklearn.model_selection import KFold
+from sklearn.model_selection import KFold, train_test_split
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import StandardScaler
 import os
 import pandas as pd
 
+
 def load_data():
-    input_path = 'C:\\Users\\gigic\\Downloads\\IA-main\\IA-main\\content\\X.npy'
-    output_path = 'C:\\Users\\gigic\\Downloads\\IA-main\\IA-main\\content\\Y_classe.npy'
+    input_path = 'C:\\Users\\gui02\\Downloads\\EP IA\\IA-main\\content\\X.npy'
+    output_path = 'C:\\Users\\gui02\\Downloads\\EP IA\\IA-main\\content\\Y_classe.npy'
 
     input_data = np.load(input_path)
     output_data = np.load(output_path)
@@ -17,12 +18,14 @@ def load_data():
 
     return input_data, output_data
 
+
 def load_logic_gate_data(file_path):
     data = pd.read_csv(file_path, header=None)
     X = data.iloc[:, :-1].values
     Y = data.iloc[:, -1].values
     Y = Y.reshape(-1, 1)
     return X, Y
+
 
 class MLP:
     def __init__(self, input_layer_size, hidden_layer_sizes, output_layer_size, learning_rate=0.01):
@@ -101,8 +104,34 @@ class MLP:
         output, _ = self.feedforward(X)
         return output
 
+
+def grid_search(X_train, Y_train, X_val, Y_val, param_grid):
+    best_params = None
+    best_accuracy = 0
+    results = []
+
+    for learning_rate in param_grid['learning_rate']:
+        for hidden_layer_sizes in param_grid['hidden_layer_sizes']:
+            mlp = MLP(input_layer_size=X_train.shape[1], hidden_layer_sizes=hidden_layer_sizes,
+                      output_layer_size=Y_train.shape[1], learning_rate=learning_rate)
+            accuracies, errors, val_accuracies, val_errors = mlp.train(X_train, Y_train, X_val, Y_val, epochs=2000)
+            mean_val_accuracy = np.mean(val_accuracies)
+
+            results.append({
+                'learning_rate': learning_rate,
+                'hidden_layer_sizes': hidden_layer_sizes,
+                'val_accuracy': mean_val_accuracy
+            })
+
+            if mean_val_accuracy > best_accuracy:
+                best_accuracy = mean_val_accuracy
+                best_params = {'learning_rate': learning_rate, 'hidden_layer_sizes': hidden_layer_sizes}
+
+    return best_params, results
+
+
 # Criar o diretório de saída, se não existir
-output_dir = 'C:\\Users\\gigic\\Downloads\\IA-main\\IA-main\\arquivos de saida'
+output_dir = 'C:\\Users\\gui02\\Downloads\\EP IA\\IA-main\\arquivos de saida'
 if not os.path.exists(output_dir):
     os.makedirs(output_dir)
 
@@ -113,71 +142,87 @@ X, Y = load_data()
 scaler = StandardScaler()
 X = scaler.fit_transform(X)
 
-# Configurar validação cruzada
-kf = KFold(n_splits=5, shuffle=True, random_state=42)
-fold = 1
+# Manter os últimos 130 valores para teste
+X_test = X[-130:]
+Y_test = Y[-130:]
+X_remaining = X[:-130]
+Y_remaining = Y[:-130]
 
-# Listas para armazenar os resultados de cada fold
-all_accuracies = []
-all_errors = []
-all_val_accuracies = []
-all_val_errors = []
+# Dividir os dados restantes em treino (60%) e validação (40%)
+X_train, X_val, Y_train, Y_val = train_test_split(X_remaining, Y_remaining, test_size=0.4, random_state=42)
 
-for train_index, val_index in kf.split(X):
-    X_train, X_val = X[train_index], X[val_index]
-    Y_train, Y_val = Y[train_index], Y[val_index]
+# Definir a grade de parâmetros para o Grid Search
+param_grid = {
+    'learning_rate': [0.001, 0.005, 0.01],
+    'hidden_layer_sizes': [[20, 10], [40, 20], [50, 30]]
+}
 
-    # Treinar o MLP com ajustes
-    mlp = MLP(input_layer_size=120, hidden_layer_sizes=[20, 10], output_layer_size=26, learning_rate=0.01)
-    initial_weights = {'weights_input_to_hidden': mlp.weights[0], 'weights_hidden_to_output': mlp.weights[-1]}
-    accuracies, errors, val_accuracies, val_errors = mlp.train(X_train, Y_train, X_val, Y_val, epochs=2000)
-    final_weights = {'weights_input_to_hidden': mlp.weights[0], 'weights_hidden_to_output': mlp.weights[-1]}
+# Executar o Grid Search
+best_params, results = grid_search(X_train, Y_train, X_val, Y_val, param_grid)
 
-    print(f"Fold {fold} Initial Weights:")
-    print(initial_weights)
-    print(f"\nFold {fold} Final Weights:")
-    print(final_weights)
+# Exibir os melhores parâmetros
+print("Melhores parâmetros encontrados:", best_params)
 
-    # Plotar as acurácias de treinamento e validação
-    plt.figure(figsize=(10, 6))
-    plt.plot(accuracies, label=f'Acurácia de Treinamento - Fold {fold}')
-    plt.plot(val_accuracies, label=f'Acurácia de Validação - Fold {fold}')
-    plt.xlabel('Épocas')
-    plt.ylabel('Acurácia')
-    plt.title(f'Acurácia ao longo das Épocas - Fold {fold}')
-    plt.legend()
-    plt.savefig(os.path.join(output_dir, f"accuracy_plot_fold_{fold}.png"))
-    plt.show()
+# Treinar o MLP com os melhores parâmetros encontrados
+mlp = MLP(input_layer_size=120, hidden_layer_sizes=best_params['hidden_layer_sizes'], output_layer_size=26,
+          learning_rate=best_params['learning_rate'])
+initial_weights = {'weights_input_to_hidden': mlp.weights[0], 'weights_hidden_to_output': mlp.weights[-1]}
+accuracies, errors, val_accuracies, val_errors = mlp.train(X_train, Y_train, X_val, Y_val, epochs=2000)
+final_weights = {'weights_input_to_hidden': mlp.weights[0], 'weights_hidden_to_output': mlp.weights[-1]}
 
-    # Plotar os erros de treinamento e validação
-    plt.figure(figsize=(10, 6))
-    plt.plot(errors, label=f'Erro de Treinamento - Fold {fold}')
-    plt.plot(val_errors, label=f'Erro de Validação - Fold {fold}')
-    plt.xlabel('Épocas')
-    plt.ylabel('Erro')
-    plt.title(f'Erro de Treinamento e Validação ao longo das Épocas - Fold {fold}')
-    plt.legend()
-    plt.savefig(os.path.join(output_dir, f"error_plot_fold_{fold}.png"))
-    plt.show()
+print("Initial Weights:")
+print(initial_weights)
+print("\nFinal Weights:")
+print(final_weights)
 
-    # Armazenar os resultados de cada fold
-    all_accuracies.append(accuracies)
-    all_errors.append(errors)
-    all_val_accuracies.append(val_accuracies)
-    all_val_errors.append(val_errors)
+# Plotar as acurácias de treinamento e validação
+plt.figure(figsize=(10, 6))
+plt.plot(accuracies, label='Acurácia de Treinamento')
+plt.plot(val_accuracies, label='Acurácia de Validação')
+plt.xlabel('Épocas')
+plt.ylabel('Acurácia')
+plt.title('Acurácia ao longo das Épocas')
+plt.legend()
+plt.savefig(os.path.join(output_dir, "accuracy_plot.png"))
+plt.show()
 
-    # Salvar arquivos de saída para cada fold
-    np.save(os.path.join(output_dir, f"initial_weights_fold_{fold}.npy"), initial_weights)
-    np.save(os.path.join(output_dir, f"final_weights_fold_{fold}.npy"), final_weights)
-    np.save(os.path.join(output_dir, f"train_errors_fold_{fold}.npy"), errors)
-    np.save(os.path.join(output_dir, f"val_errors_fold_{fold}.npy"), val_errors)
+# Plotar os erros de treinamento e validação
+plt.figure(figsize=(10, 6))
+plt.plot(errors, label='Erro de Treinamento')
+plt.plot(val_errors, label='Erro de Validação')
+plt.xlabel('Épocas')
+plt.ylabel('Erro')
+plt.title('Erro de Treinamento e Validação ao longo das Épocas')
+plt.legend()
+plt.savefig(os.path.join(output_dir, "error_plot.png"))
+plt.show()
 
-    fold += 1
+# Fazer previsões com o conjunto de teste
+test_predictions = mlp.predict(X_test)
+
+# Salvar arquivos de saída
+np.save(os.path.join(output_dir, "initial_weights.npy"), initial_weights)
+np.save(os.path.join(output_dir, "final_weights.npy"), final_weights)
+np.save(os.path.join(output_dir, "train_errors.npy"), errors)
+np.save(os.path.join(output_dir, "val_errors.npy"), val_errors)
+np.save(os.path.join(output_dir, "test_predictions.npy"), test_predictions)
+
+# Salvar hiperparâmetros
+hyperparameters = {
+    "input_layer_size": 120,
+    "hidden_layer_sizes": best_params['hidden_layer_sizes'],
+    "output_layer_size": 26,
+    "learning_rate": best_params['learning_rate'],
+    "epochs": 2000
+}
+with open(os.path.join(output_dir, "hyperparameters.txt"), "w") as f:
+    for key, value in hyperparameters.items():
+        f.write(f"{key}: {value}\n")
 
 # Carregar e validar dados das portas lógicas
 logic_gate_files = ['problemAND.csv', 'problemOR.csv', 'probleXOR.csv']
 logic_gate_names = ['AND', 'OR', 'XOR']
-logic_gate_paths = [f'C:\\Users\\gigic\\Downloads\\IA-main\\IA-main\\content\\{file}' for file in logic_gate_files]
+logic_gate_paths = [f'C:\\Users\\gui02\\Downloads\\EP IA\\IA-main\\content\\{file}' for file in logic_gate_files]
 
 for gate_name, gate_path in zip(logic_gate_names, logic_gate_paths):
     X_logic, Y_logic = load_logic_gate_data(gate_path)
@@ -194,7 +239,7 @@ for gate_name, gate_path in zip(logic_gate_names, logic_gate_paths):
         Y_train, Y_val = Y_logic[train_index], Y_logic[val_index]
 
         # Treinar o MLP para o problema lógico
-        mlp = MLP(input_layer_size=2, hidden_layer_sizes=[2], output_layer_size=1, learning_rate=0.1)
+        mlp = MLP(input_layer_size=2, hidden_layer_sizes=[4], output_layer_size=1, learning_rate=0.1)
         accuracies, errors, val_accuracies, val_errors = mlp.train(X_train, Y_train, X_val, Y_val, epochs=2000)
 
         print(f"Fold {fold} - {gate_name} Initial Weights:")
