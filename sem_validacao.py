@@ -1,6 +1,6 @@
 import numpy as np
 from sklearn.metrics import accuracy_score
-from sklearn.model_selection import KFold, train_test_split
+from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import StandardScaler
 import os
@@ -8,8 +8,8 @@ import pandas as pd
 
 
 def load_data():
-    input_path = 'X.npy'
-    output_path = 'Y_classe.npy'
+    input_path = 'C:\\Users\\gui02\\Downloads\\EP IA\\IA-main\\content\\X.npy'
+    output_path = 'C:\\Users\\gui02\\Downloads\\EP IA\\IA-main\\content\\Y_classe.npy'
 
     input_data = np.load(input_path)
     output_data = np.load(output_path)
@@ -67,35 +67,42 @@ class MLP:
         for i in range(len(self.hidden_layer_sizes) - 1, -1, -1):
             self.weights[i] += self.learning_rate * np.dot(activations[i].T, deltas[i])
 
-    def train(self, X, Y, epochs=1000):
+    def train(self, X_train, Y_train, X_val, Y_val, epochs=1000):
         accuracies = []
         errors = []
         val_accuracies = []
         val_errors = []
 
         for epoch in range(epochs):
-            output, activations = self.feedforward(X)
-            self.backpropagation(X, Y, output, activations)
+            output, activations = self.feedforward(X_train)
+            self.backpropagation(X_train, Y_train, output, activations)
 
-            error = np.mean(np.square(Y - output))
+            error = np.mean(np.square(Y_train - output))
             errors.append(error)
 
-            accuracy = accuracy_score(Y.argmax(axis=1), np.round(output).argmax(axis=1))
+            accuracy = accuracy_score(Y_train.argmax(axis=1), np.round(output).argmax(axis=1))
             accuracies.append(accuracy)
+
+            # Validação
+            val_output, _ = self.feedforward(X_val)
+            val_error = np.mean(np.square(Y_val - val_output))
+            val_errors.append(val_error)
+            val_accuracy = accuracy_score(Y_val.argmax(axis=1), np.round(val_output).argmax(axis=1))
+            val_accuracies.append(val_accuracy)
 
         return accuracies, errors, val_accuracies, val_errors
 
 
-def grid_search(X, Y, param_grid):
+def grid_search(X_train, Y_train, X_val, Y_val, param_grid):
     best_params = None
     best_accuracy = 0
     results = []
 
     for learning_rate in param_grid['learning_rate']:
         for hidden_layer_sizes in param_grid['hidden_layer_sizes']:
-            mlp = MLP(input_layer_size=X.shape[1], hidden_layer_sizes=hidden_layer_sizes,
-                      output_layer_size=Y.shape[1], learning_rate=learning_rate)
-            accuracies, errors, val_accuracies, val_errors = mlp.train(X, Y, epochs=2000)
+            mlp = MLP(input_layer_size=X_train.shape[1], hidden_layer_sizes=hidden_layer_sizes,
+                      output_layer_size=Y_train.shape[1], learning_rate=learning_rate)
+            accuracies, errors, val_accuracies, val_errors = mlp.train(X_train, Y_train, X_val, Y_val, epochs=2000)
             mean_val_accuracy = np.mean(val_accuracies)
 
             results.append({
@@ -123,6 +130,9 @@ X, Y = load_data()
 scaler = StandardScaler()
 X = scaler.fit_transform(X)
 
+# Dividir os dados em treino (60%) e validação (40%)
+X_train, X_val, Y_train, Y_val = train_test_split(X, Y, test_size=0.4, random_state=42)
+
 # Definir a grade de parâmetros para o Grid Search
 param_grid = {
     'learning_rate': [0.001, 0.005, 0.01],
@@ -130,7 +140,7 @@ param_grid = {
 }
 
 # Executar o Grid Search
-best_params, results = grid_search(X, Y, param_grid)
+best_params, results = grid_search(X_train, Y_train, X_val, Y_val, param_grid)
 
 # Exibir os melhores parâmetros
 print("Melhores parâmetros encontrados:", best_params)
@@ -138,10 +148,8 @@ print("Melhores parâmetros encontrados:", best_params)
 # Treinar o MLP com os melhores parâmetros encontrados
 mlp = MLP(input_layer_size=120, hidden_layer_sizes=best_params['hidden_layer_sizes'], output_layer_size=26,
           learning_rate=best_params['learning_rate'])
-mlp = MLP(input_layer_size=120, hidden_layer_sizes=100, output_layer_size=26,
-          learning_rate=0.1)
 initial_weights = {'weights_input_to_hidden': mlp.weights[0], 'weights_hidden_to_output': mlp.weights[-1]}
-accuracies, errors, val_accuracies, val_errors = mlp.train(X, Y, epochs=2000)
+accuracies, errors, val_accuracies, val_errors = mlp.train(X_train, Y_train, X_val, Y_val, epochs=2000)
 final_weights = {'weights_input_to_hidden': mlp.weights[0], 'weights_hidden_to_output': mlp.weights[-1]}
 
 print("Initial Weights:")
@@ -151,7 +159,8 @@ print(final_weights)
 
 # Plotar as acurácias de treinamento e validação
 plt.figure(figsize=(10, 6))
-plt.plot(accuracies, label='Acurácia')
+plt.plot(accuracies, label='Acurácia de Treinamento')
+plt.plot(val_accuracies, label='Acurácia de Validação')
 plt.xlabel('Épocas')
 plt.ylabel('Acurácia')
 plt.title('Acurácia ao longo das Épocas')
@@ -161,7 +170,8 @@ plt.show()
 
 # Plotar os erros de treinamento e validação
 plt.figure(figsize=(10, 6))
-plt.plot(errors, label='Erro')
+plt.plot(errors, label='Erro de Treinamento')
+plt.plot(val_errors, label='Erro de Validação')
 plt.xlabel('Épocas')
 plt.ylabel('Erro')
 plt.title('Erro de Treinamento e Validação ao longo das Épocas')
