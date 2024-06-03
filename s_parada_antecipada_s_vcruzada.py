@@ -11,233 +11,234 @@ import numpy as np
 import os
 import matplotlib.pyplot as plt
 
-def load_data():
-    input_path = 'X.npy'
-    output_path = 'Y_classe.npy'
 
-    input_data = np.load(input_path)
-    output_data = np.load(output_path)
+def carregar_dados():
+    caminho_entrada = 'X.npy'
+    caminho_saida = 'Y_classe.npy'
 
-    input_data = input_data.reshape(input_data.shape[0], -1)
+    dados_entrada = np.load(caminho_entrada)
+    dados_saida = np.load(caminho_saida)
 
-    return input_data, output_data
+    dados_entrada = dados_entrada.reshape(dados_entrada.shape[0], -1)
+
+    return dados_entrada, dados_saida
 
 class MLP:
-    def __init__(self, input_layer_size, hidden_layer_size, output_layer_size, learning_rate=0.01):
-        self.hidden_layer_size = hidden_layer_size
-        self.weights_input_to_hidden = np.random.uniform(-0.5, 0.5, [input_layer_size + 1, hidden_layer_size])
-        self.weights_hidden_to_output = np.random.uniform(-0.5, 0.5, [hidden_layer_size + 1, output_layer_size])
-        self.learning_rate = learning_rate
+    def __init__(self, tamanho_cam_entrada, tamanho_cam_oculta, tamanho_cam_saida, taxa_aprendizado=0.01):
+        self.tamanho_cam_oculta = tamanho_cam_oculta
+        self.pesos_entrada_para_oculta = np.random.uniform(-0.5, 0.5, [tamanho_cam_entrada + 1, tamanho_cam_oculta])
+        self.pesos_oculta_para_saida = np.random.uniform(-0.5, 0.5, [tamanho_cam_oculta + 1, tamanho_cam_saida])
+        self.taxa_aprendizado = taxa_aprendizado
 
     def sigmoid(self, x):
         return 1 / (1 + np.exp(-x))
 
-    def sigmoid_derivative(self, x):
+    def derivada_sigmoid(self, x):
         return x * (1 - x)
 
     def feedforward(self, X):
-        self.input_layer = np.insert(X, 0, 1, axis=1)
-        self.hidden_layer_input = np.dot(self.input_layer, self.weights_input_to_hidden)
-        self.hidden_layer_output = self.sigmoid(self.hidden_layer_input)
-        self.hidden_layer_output = np.insert(self.hidden_layer_output, 0, 1, axis=1)
-        self.output_layer_input = np.dot(self.hidden_layer_output, self.weights_hidden_to_output)
-        self.output_layer_output = self.sigmoid(self.output_layer_input)
-        return self.output_layer_output
+        self.cam_entrada = np.insert(X, 0, 1, axis=1)
+        self.entrada_cam_oculta = np.dot(self.cam_entrada, self.pesos_entrada_para_oculta)
+        self.saida_cam_oculta = self.sigmoid(self.entrada_cam_oculta)
+        self.saida_cam_oculta = np.insert(self.saida_cam_oculta, 0, 1, axis=1)
+        self.entrada_cam_saida = np.dot(self.saida_cam_oculta, self.pesos_oculta_para_saida)
+        self.saida_cam_saida = self.sigmoid(self.entrada_cam_saida)
+        return self.saida_cam_saida
 
-    def backpropagation(self, X, Y, output):
-        output_error = Y - output
-        output_delta = output_error * self.sigmoid_derivative(output)
+    def retropropagacao(self, X, Y, saida):
+        erro_saida = Y - saida
+        delta_saida = erro_saida * self.derivada_sigmoid(saida)
 
-        hidden_error = np.dot(output_delta, self.weights_hidden_to_output.T[:, 1:])
-        hidden_delta = hidden_error * self.sigmoid_derivative(self.hidden_layer_output[:, 1:])
+        erro_oculta = np.dot(delta_saida, self.pesos_oculta_para_saida.T[:, 1:])
+        delta_oculta = erro_oculta * self.derivada_sigmoid(self.saida_cam_oculta[:, 1:])
 
-        self.weights_hidden_to_output += self.learning_rate * np.dot(self.hidden_layer_output.T, output_delta)
-        self.weights_input_to_hidden += self.learning_rate * np.dot(self.input_layer.T, hidden_delta)
+        self.pesos_oculta_para_saida += self.taxa_aprendizado * np.dot(self.saida_cam_oculta.T, delta_saida)
+        self.pesos_entrada_para_oculta += self.taxa_aprendizado * np.dot(self.cam_entrada.T, delta_oculta)
 
-    def train(self, X_test, Y_test, X_remaining, Y_remaining, epochs=1000):
-        accuracies = []
-        errors = []
-        val_accuracies = []
-        val_errors = []
+    def treinar(self, X_teste, Y_teste, X_restante, Y_restante, epocas=1000):
+        acuracias = []
+        erros = []
+        val_acuracias = []
+        val_erros = []
 
-        best_val_accuracy = 0
-        epochs_no_improve = 0
+        melhor_acuracia_val = 0
+        epocas_sem_melhora = 0
 
-        for epoch in range(epochs):
-            output = self.feedforward(X_test)
-            self.backpropagation(X_test, Y_test, output)
+        for epoca in range(epocas):
+            saida = self.feedforward(X_teste)
+            self.retropropagacao(X_teste, Y_teste, saida)
 
-            error = np.mean(np.square(Y_test - output))
-            errors.append(error)
-            accuracy = self.calculate_accuracy(Y_test, output)
-            accuracies.append(accuracy)
+            erro = np.mean(np.square(Y_teste - saida))
+            erros.append(erro)
+            acuracia = self.calcular_acuracia(Y_teste, saida)
+            acuracias.append(acuracia)
 
-            val_output = self.feedforward(X_remaining)
-            val_error = np.mean(np.square(Y_remaining - val_output))
-            val_errors.append(val_error)
-            val_accuracy = self.calculate_accuracy(Y_remaining, val_output)
-            val_accuracies.append(val_accuracy)
+            val_saida = self.feedforward(X_restante)
+            val_erro = np.mean(np.square(Y_restante - val_saida))
+            val_erros.append(val_erro)
+            val_acuracia = self.calcular_acuracia(Y_restante, val_saida)
+            val_acuracias.append(val_acuracia)
 
-        return accuracies, errors, val_accuracies, val_errors
+        return acuracias, erros, val_acuracias, val_erros
 
-    def predict(self, X):
-        output = self.feedforward(X)
-        return output
+    def prever(self, X):
+        saida = self.feedforward(X)
+        return saida
 
-    def calculate_accuracy(self, Y_true, Y_pred):
-        correct_predictions = np.sum(Y_true.argmax(axis=1) == Y_pred.argmax(axis=1))
-        accuracy = correct_predictions / Y_true.shape[0]
-        return accuracy
+    def calcular_acuracia(self, Y_verdadeiro, Y_previsto):
+        previsoes_corretas = np.sum(Y_verdadeiro.argmax(axis=1) == Y_previsto.argmax(axis=1))
+        acuracia = previsoes_corretas / Y_verdadeiro.shape[0]
+        return acuracia
 
-    def plot_metrics(self, accuracies, errors, val_accuracies, val_errors, output_dir):
+    def plotar_metricas(self, acuracias, erros, val_acuracias, val_erros, diretorio_saida):
         # Plotar as acurácias de treinamento e validação
         plt.figure(figsize=(10, 6))
-        plt.plot(accuracies, label=f'Training Accuracy')
-        plt.plot(val_accuracies, label=f'Validation Accuracy')
-        plt.xlabel('Epochs')
-        plt.ylabel('Accuracy')
-        plt.title(f'Accuracy over Epochs')
+        plt.plot(acuracias, label='Acurácia de Treinamento')
+        plt.plot(val_acuracias, label='Acurácia de Validação')
+        plt.xlabel('Épocas')
+        plt.ylabel('Acurácia')
+        plt.title('Acurácia ao longo das Épocas')
         plt.legend()
-        plt.savefig(os.path.join(output_dir, f"accuracy_plot_fold.png"))
+        plt.savefig(os.path.join(diretorio_saida, "grafico_acuracia.png"))
         plt.show()
 
         # Plotar os erros de treinamento e validação
         plt.figure(figsize=(10, 6))
-        plt.plot(errors, label=f'Training Error')
-        plt.plot(val_errors, label=f'Validation Error')
-        plt.xlabel('Epochs')
-        plt.ylabel('Error')
-        plt.title(f'Training and Validation Error over Epochs')
+        plt.plot(erros, label='Erro de Treinamento')
+        plt.plot(val_erros, label='Erro de Validação')
+        plt.xlabel('Épocas')
+        plt.ylabel('Erro')
+        plt.title('Erro de Treinamento e Validação ao longo das Épocas')
         plt.legend()
-        plt.savefig(os.path.join(output_dir, f"error_plot_fold.png"))
+        plt.savefig(os.path.join(diretorio_saida, "grafico_erro.png"))
         plt.show()
 
-    def plot_confusion_matrix(self, Y_true, Y_pred, output_dir):
-        cm = np.zeros((Y_true.shape[1], Y_true.shape[1]), dtype=int)
-        for true, pred in zip(Y_true.argmax(axis=1), Y_pred.argmax(axis=1)):
-            cm[true, pred] += 1
+    def plotar_matriz_confusao(self, Y_verdadeiro, Y_previsto, diretorio_saida):
+        matriz_confusao = np.zeros((Y_verdadeiro.shape[1], Y_verdadeiro.shape[1]), dtype=int)
+        for verdadeiro, previsto in zip(Y_verdadeiro.argmax(axis=1), Y_previsto.argmax(axis=1)):
+            matriz_confusao[verdadeiro, previsto] += 1
 
         plt.figure(figsize=(10, 6))
-        plt.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
-        plt.title(f'Confusion Matrix')
+        plt.imshow(matriz_confusao, interpolation='nearest', cmap=plt.cm.Blues)
+        plt.title('Matriz de Confusão')
         plt.colorbar()
-        tick_marks = np.arange(Y_true.shape[1])
-        plt.xticks(tick_marks, tick_marks, rotation=45)
-        plt.yticks(tick_marks, tick_marks)
+        marcas_tick = np.arange(Y_verdadeiro.shape[1])
+        plt.xticks(marcas_tick, marcas_tick, rotation=45)
+        plt.yticks(marcas_tick, marcas_tick)
 
-        thresh = cm.max() / 2.
-        for i, j in np.ndindex(cm.shape):
-            plt.text(j, i, format(cm[i, j], 'd'),
-                    horizontalalignment="center",
-                    color="white" if cm[i, j] > thresh else "black")
+        limiar = matriz_confusao.max() / 2.
+        for i, j in np.ndindex(matriz_confusao.shape):
+            plt.text(j, i, format(matriz_confusao[i, j], 'd'),
+                     horizontalalignment="center",
+                     color="white" if matriz_confusao[i, j] > limiar else "black")
 
-        plt.ylabel('True label')
-        plt.xlabel('Predicted label')
+        plt.ylabel('Rótulo Verdadeiro')
+        plt.xlabel('Rótulo Previsto')
         plt.tight_layout()
-        plt.savefig(os.path.join(output_dir, f"confusion_matrix_fold.png"))
+        plt.savefig(os.path.join(diretorio_saida, "matriz_confusao.png"))
         plt.show()
 
-def grid_search(X, Y, param_grid):
-    best_params = None
-    best_accuracy = 0
-    results = []
+def busca_em_grade(X, Y, grid_parametros):
+    melhores_parametros = None
+    melhor_acuracia = 0
+    resultados = []
 
     num_folds = 5
-    fold_size = len(X) // num_folds
+    tamanho_fold = len(X) // num_folds
 
-    for learning_rate in param_grid['learning_rate']:
-        for hidden_layer_size in param_grid['hidden_layer_sizes']:
-            fold_accuracies = []
+    for taxa_aprendizado in grid_parametros['taxa_aprendizado']:
+        for tamanho_cam_oculta in grid_parametros['tamanho_cam_ocultas']:
+            acuracias_fold = []
             for fold in range(num_folds):
-                start = fold * fold_size
-                end = (fold + 1) * fold_size if fold != num_folds - 1 else len(X)
+                inicio = fold * tamanho_fold
+                fim = (fold + 1) * tamanho_fold if fold != num_folds - 1 else len(X)
 
-                X_val_fold = X[start:end]
-                Y_val_fold = Y[start:end]
-                X_train_fold = np.concatenate([X[:start], X[end:]])
-                Y_train_fold = np.concatenate([Y[:start], Y[end:]])
+                X_val_fold = X[inicio:fim]
+                Y_val_fold = Y[inicio:fim]
+                X_treinamento_fold = np.concatenate([X[:inicio], X[fim:]])
+                Y_treinamento_fold = np.concatenate([Y[:inicio], Y[fim:]])
 
-                mlp = MLP(input_layer_size=X_train_fold.shape[1], hidden_layer_size=hidden_layer_size,
-                          output_layer_size=Y_train_fold.shape[1], learning_rate=learning_rate)
-                _, _, val_accuracies, _ = mlp.train(X_train_fold, Y_train_fold, X_val_fold, Y_val_fold, epochs=2000)
-                fold_accuracies.append(np.mean(val_accuracies))
+                mlp = MLP(tamanho_cam_entrada=X_treinamento_fold.shape[1], tamanho_cam_oculta=tamanho_cam_oculta,
+                          tamanho_cam_saida=Y_treinamento_fold.shape[1], taxa_aprendizado=taxa_aprendizado)
+                _, _, val_acuracias, _ = mlp.treinar(X_treinamento_fold, Y_treinamento_fold, X_val_fold, Y_val_fold, epocas=2000)
+                acuracias_fold.append(np.mean(val_acuracias))
 
-            mean_val_accuracy = np.mean(fold_accuracies)
-            results.append({
-                'learning_rate': learning_rate,
-                'hidden_layer_size': hidden_layer_size,
-                'val_accuracy': mean_val_accuracy
+            media_val_acuracia = np.mean(acuracias_fold)
+            resultados.append({
+                'taxa_aprendizado': taxa_aprendizado,
+                'tamanho_cam_oculta': tamanho_cam_oculta,
+                'val_acuracia': media_val_acuracia
             })
 
-            if mean_val_accuracy > best_accuracy:
-                best_accuracy = mean_val_accuracy
-                best_params = {'learning_rate': learning_rate, 'hidden_layer_size': hidden_layer_size}
+            if media_val_acuracia > melhor_acuracia:
+                melhor_acuracia = media_val_acuracia
+                melhores_parametros = {'taxa_aprendizado': taxa_aprendizado, 'tamanho_cam_oculta': tamanho_cam_oculta}
 
-    return best_params, results
+    return melhores_parametros, resultados
 
 # Criar o diretório de saída, se não existir
-output_dir = './arquivos_de_saida'
-if not os.path.exists(output_dir):
-    os.makedirs(output_dir)
+diretorio_saida = './arquivos_de_saida'
+if not os.path.exists(diretorio_saida):
+    os.makedirs(diretorio_saida)
 
 # Carregar os dados
-X, Y = load_data()
+X, Y = carregar_dados()
 
 # Normalização dos dados
-scaler = lambda x: (x - np.mean(x, axis=0)) / np.std(x, axis=0)
-X = scaler(X)
+escalador = lambda x: (x - np.mean(x, axis=0)) / np.std(x, axis=0)
+X = escalador(X)
 
 # Manter os últimos 130 valores para teste
-X_test = X[-130:]
-Y_test = Y[-130:]
-X_remaining = X[:-130]
-Y_remaining = Y[:-130]
+X_teste = X[-130:]
+Y_teste = Y[-130:]
+X_restante = X[:-130]
+Y_restante = Y[:-130]
 
 # Listas para armazenar os resultados de cada fold
-all_accuracies = []
-all_errors = []
-all_val_accuracies = []
-all_val_errors = []
+todas_acuracias = []
+todos_erros = []
+todas_val_acuracias = []
+todos_val_erros = []
 
 # Definir a grade de parâmetros para o Grid Search
-param_grid = {
-    'learning_rate': [0.001, 0.005, 0.01],
-    'hidden_layer_sizes': [20, 40, 60]
+grid_parametros = {
+    'taxa_aprendizado': [0.001, 0.005, 0.01],
+    'tamanho_cam_ocultas': [20, 40, 60]
 }
 
 # Executar o Grid Search
-best_params, results = grid_search(X_test, Y_test, param_grid)
+melhores_parametros, resultados = busca_em_grade(X_teste, Y_teste, grid_parametros)
 
 # Exibir os melhores parâmetros
-print("Melhores parâmetros encontrados:", best_params)
+print("Melhores parâmetros encontrados:", melhores_parametros)
 
 # Treinar o MLP com os dados completos de treinamento e validação
-mlp = MLP(input_layer_size=120, hidden_layer_size=20, output_layer_size=26, learning_rate=0.01)
-initial_weights = {'weights_input_to_hidden': mlp.weights_input_to_hidden.copy(), 'weights_hidden_to_output': mlp.weights_hidden_to_output.copy()}
-accuracies, errors, val_accuracies, val_errors = mlp.train(X_test, Y_test, X_remaining, Y_remaining, epochs=2000)
+mlp = MLP(tamanho_cam_entrada=120, tamanho_cam_oculta=20, tamanho_cam_saida=26, taxa_aprendizado=0.01)
+pesos_iniciais = {'pesos_entrada_para_oculta': mlp.pesos_entrada_para_oculta.copy(), 'pesos_oculta_para_saida': mlp.pesos_oculta_para_saida.copy()}
+acuracias, erros, val_acuracias, val_erros = mlp.treinar(X_teste, Y_teste, X_restante, Y_restante, epocas=2000)
 # Plotar as métricas
-mlp.plot_metrics(accuracies, errors, val_accuracies, val_errors, output_dir)
-final_weights = {'weights_input_to_hidden': mlp.weights_input_to_hidden, 'weights_hidden_to_output': mlp.weights_hidden_to_output}
+mlp.plotar_metricas(acuracias, erros, val_acuracias, val_erros, diretorio_saida)
+pesos_finais = {'pesos_entrada_para_oculta': mlp.pesos_entrada_para_oculta, 'pesos_oculta_para_saida': mlp.pesos_oculta_para_saida}
 
 # Fazer previsões no conjunto de teste
-test_predictions = mlp.predict(X_test)
+previsoes_teste = mlp.prever(X_teste)
 
 # Calcular a acurácia no conjunto de teste
-test_accuracy = mlp.calculate_accuracy(Y_test, test_predictions)
-print(f"Acurácia no conjunto de teste: {test_accuracy}")
+acuracia_teste = mlp.calcular_acuracia(Y_teste, previsoes_teste)
+print(f"Acurácia no conjunto de teste: {acuracia_teste}")
 
 # Plotar a matriz de confusão para o conjunto de teste
-mlp.plot_confusion_matrix(Y_test, test_predictions, output_dir)
+mlp.plotar_matriz_confusao(Y_teste, previsoes_teste, diretorio_saida)
 
 # Salvar hiperparâmetros
-hyperparameters = {
-    "input_layer_size": 120,
-    "hidden_layer_size": best_params['hidden_layer_size'],
-    "output_layer_size": 26,
-    "learning_rate": best_params['learning_rate'],
-    "epochs": 2000
+hiperparametros = {
+    "tamanho_cam_entrada": 120,
+    "tamanho_cam_oculta": melhores_parametros['tamanho_cam_oculta'],
+    "tamanho_cam_saida": 26,
+    "taxa_aprendizado": melhores_parametros['taxa_aprendizado'],
+    "epocas": 2000
 }
 
-with open(os.path.join(output_dir, "hyperparameters.txt"), "w") as f:
-    for key, value in hyperparameters.items():
-        f.write(f"{key}: {value}\n")
+with open(os.path.join(diretorio_saida, "hiperparametros.txt"), "w") as f:
+    for chave, valor in hiperparametros.items():
+        f.write(f"{chave}: {valor}\n")
