@@ -13,21 +13,21 @@ import matplotlib.pyplot as plt
 
 
 def carregar_dados():
-    caminho_entrada = 'X.npy'
-    caminho_saida = 'Y_classe.npy'
+    path_x = 'X.npy'
+    path_y = 'Y_classe.npy'
 
-    dados_entrada = np.load(caminho_entrada)
-    dados_saida = np.load(caminho_saida)
+    dados_entrada = np.load(path_x)
+    dados_saida = np.load(path_y)
 
     dados_entrada = dados_entrada.reshape(dados_entrada.shape[0], -1)
 
     return dados_entrada, dados_saida
 
 class MLP:
-    def __init__(self, tamanho_cam_entrada, tamanho_cam_oculta, tamanho_cam_saida, taxa_aprendizado=0.01):
-        self.tamanho_cam_oculta = tamanho_cam_oculta
-        self.pesos_entrada_para_oculta = np.random.uniform(-0.5, 0.5, [tamanho_cam_entrada + 1, tamanho_cam_oculta])
-        self.pesos_oculta_para_saida = np.random.uniform(-0.5, 0.5, [tamanho_cam_oculta + 1, tamanho_cam_saida])
+    def __init__(self, tam_cam_entrada, tam_camada_oculta, tam_camada_saida, taxa_aprendizado=0.01):
+        self.tam_camada_oculta = tam_camada_oculta
+        self.pesos_entrada_para_oculta = np.random.uniform(-0.5, 0.5, [tam_cam_entrada + 1, tam_camada_oculta])
+        self.pesos_oculta_para_saida = np.random.uniform(-0.5, 0.5, [tam_camada_oculta + 1, tam_camada_saida])
         self.taxa_aprendizado = taxa_aprendizado
 
     def sigmoid(self, x):
@@ -61,9 +61,6 @@ class MLP:
         val_acuracias = []
         val_erros = []
 
-        melhor_acuracia_val = 0
-        epocas_sem_melhora = 0
-
         for epoca in range(epocas):
             saida = self.feedforward(X_teste)
             self.retropropagacao(X_teste, Y_teste, saida)
@@ -81,7 +78,7 @@ class MLP:
 
         return acuracias, erros, val_acuracias, val_erros
 
-    def prever(self, X):
+    def prediz_acuracia(self, X):
         saida = self.feedforward(X)
         return saida
 
@@ -138,7 +135,7 @@ class MLP:
         plt.savefig(os.path.join(diretorio_saida, "matriz_confusao.png"))
         plt.show()
 
-def busca_em_grade(X, Y, grid_parametros):
+def grid(X, Y, grid_parametros):
     melhores_parametros = None
     melhor_acuracia = 0
     resultados = []
@@ -147,7 +144,7 @@ def busca_em_grade(X, Y, grid_parametros):
     tamanho_fold = len(X) // num_folds
 
     for taxa_aprendizado in grid_parametros['taxa_aprendizado']:
-        for tamanho_cam_oculta in grid_parametros['tamanho_cam_ocultas']:
+        for tam_camada_oculta in grid_parametros['tam_camada_ocultas']:
             acuracias_fold = []
             for fold in range(num_folds):
                 inicio = fold * tamanho_fold
@@ -158,21 +155,21 @@ def busca_em_grade(X, Y, grid_parametros):
                 X_treinamento_fold = np.concatenate([X[:inicio], X[fim:]])
                 Y_treinamento_fold = np.concatenate([Y[:inicio], Y[fim:]])
 
-                mlp = MLP(tamanho_cam_entrada=X_treinamento_fold.shape[1], tamanho_cam_oculta=tamanho_cam_oculta,
-                          tamanho_cam_saida=Y_treinamento_fold.shape[1], taxa_aprendizado=taxa_aprendizado)
+                mlp = MLP(tam_cam_entrada=X_treinamento_fold.shape[1], tam_camada_oculta=tam_camada_oculta,
+                          tam_camada_saida=Y_treinamento_fold.shape[1], taxa_aprendizado=taxa_aprendizado)
                 _, _, val_acuracias, _ = mlp.treinar(X_treinamento_fold, Y_treinamento_fold, X_val_fold, Y_val_fold, epocas=2000)
                 acuracias_fold.append(np.mean(val_acuracias))
 
             media_val_acuracia = np.mean(acuracias_fold)
             resultados.append({
                 'taxa_aprendizado': taxa_aprendizado,
-                'tamanho_cam_oculta': tamanho_cam_oculta,
+                'tam_camada_oculta': tam_camada_oculta,
                 'val_acuracia': media_val_acuracia
             })
 
             if media_val_acuracia > melhor_acuracia:
                 melhor_acuracia = media_val_acuracia
-                melhores_parametros = {'taxa_aprendizado': taxa_aprendizado, 'tamanho_cam_oculta': tamanho_cam_oculta}
+                melhores_parametros = {'taxa_aprendizado': taxa_aprendizado, 'tam_camada_oculta': tam_camada_oculta}
 
     return melhores_parametros, resultados
 
@@ -203,17 +200,17 @@ todos_val_erros = []
 # Definir a grade de parâmetros para o Grid Search
 grid_parametros = {
     'taxa_aprendizado': [0.001, 0.005, 0.01],
-    'tamanho_cam_ocultas': [20, 40, 60]
+    'tam_camada_ocultas': [20, 40, 60]
 }
 
 # Executar o Grid Search
-melhores_parametros, resultados = busca_em_grade(X_teste, Y_teste, grid_parametros)
+melhores_parametros, resultados = grid(X_teste, Y_teste, grid_parametros)
 
 # Exibir os melhores parâmetros
 print("Melhores parâmetros encontrados:", melhores_parametros)
 
 # Treinar o MLP com os dados completos de treinamento e validação
-mlp = MLP(tamanho_cam_entrada=120, tamanho_cam_oculta=20, tamanho_cam_saida=26, taxa_aprendizado=0.01)
+mlp = MLP(tam_cam_entrada=120, tam_camada_oculta=20, tam_camada_saida=26, taxa_aprendizado=0.01)
 pesos_iniciais = {'pesos_entrada_para_oculta': mlp.pesos_entrada_para_oculta.copy(), 'pesos_oculta_para_saida': mlp.pesos_oculta_para_saida.copy()}
 acuracias, erros, val_acuracias, val_erros = mlp.treinar(X_teste, Y_teste, X_restante, Y_restante, epocas=2000)
 # Plotar as métricas
@@ -221,7 +218,7 @@ mlp.plotar_metricas(acuracias, erros, val_acuracias, val_erros, diretorio_saida)
 pesos_finais = {'pesos_entrada_para_oculta': mlp.pesos_entrada_para_oculta, 'pesos_oculta_para_saida': mlp.pesos_oculta_para_saida}
 
 # Fazer previsões no conjunto de teste
-previsoes_teste = mlp.prever(X_teste)
+previsoes_teste = mlp.prediz_acuracia(X_teste)
 
 # Calcular a acurácia no conjunto de teste
 acuracia_teste = mlp.calcular_acuracia(Y_teste, previsoes_teste)
@@ -232,9 +229,9 @@ mlp.plotar_matriz_confusao(Y_teste, previsoes_teste, diretorio_saida)
 
 # Salvar hiperparâmetros
 hiperparametros = {
-    "tamanho_cam_entrada": 120,
-    "tamanho_cam_oculta": melhores_parametros['tamanho_cam_oculta'],
-    "tamanho_cam_saida": 26,
+    "tam_cam_entrada": 120,
+    "tam_camada_oculta": melhores_parametros['tam_camada_oculta'],
+    "tam_camada_saida": 26,
     "taxa_aprendizado": melhores_parametros['taxa_aprendizado'],
     "epocas": 2000
 }

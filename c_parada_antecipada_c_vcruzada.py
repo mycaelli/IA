@@ -12,21 +12,21 @@ import os
 import matplotlib.pyplot as plt
 
 def carregar_dados():
-    caminho_entrada = 'C:\\Users\\gui02\\Downloads\\EP IA\\IA-main\\content\\X.npy'
-    caminho_saida = 'C:\\Users\\gui02\\Downloads\\EP IA\\IA-main\\content\\Y_classe.npy'
+    path_x = 'X.npy'
+    path_y = 'Y_classe.npy'
 
-    dados_entrada = np.load(caminho_entrada)
-    dados_saida = np.load(caminho_saida)
+    dados_entrada = np.load(path_x)
+    dados_saida = np.load(path_y)
 
     dados_entrada = dados_entrada.reshape(dados_entrada.shape[0], -1)
 
     return dados_entrada, dados_saida
 
 class MLP:
-    def __init__(self, tamanho_cam_entrada, tamanho_cam_oculta, tamanho_cam_saida, taxa_aprendizado=0.01):
-        self.tamanho_cam_oculta = tamanho_cam_oculta
-        self.pesos_entrada_para_oculta = np.random.uniform(-0.5, 0.5, [tamanho_cam_entrada + 1, tamanho_cam_oculta])
-        self.pesos_oculta_para_saida = np.random.uniform(-0.5, 0.5, [tamanho_cam_oculta + 1, tamanho_cam_saida])
+    def __init__(self, tam_cam_entrada, tam_camada_oculta, tam_camada_saida, taxa_aprendizado=0.01):
+        self.tam_camada_oculta = tam_camada_oculta
+        self.pesos_entrada_para_oculta = np.random.uniform(-0.5, 0.5, [tam_cam_entrada + 1, tam_camada_oculta])
+        self.pesos_oculta_para_saida = np.random.uniform(-0.5, 0.5, [tam_camada_oculta + 1, tam_camada_saida])
         self.taxa_aprendizado = taxa_aprendizado
 
     def sigmoid(self, x):
@@ -90,7 +90,7 @@ class MLP:
 
         return acuracias, erros, val_acuracias, val_erros
 
-    def prever(self, X):
+    def prediz_acuracia(self, X):
         saida = self.feedforward(X)
         return saida
 
@@ -200,14 +200,14 @@ for indices_validacao, indices_treinamento in folds:
     X_treinamento_fold, X_validacao_fold = X_treinamento[indices_treinamento], X_treinamento[indices_validacao]
     Y_treinamento_fold, Y_validacao_fold = Y_treinamento[indices_treinamento], Y_treinamento[indices_validacao]
 
-    mlp = MLP(tamanho_cam_entrada=120, tamanho_cam_oculta=20, tamanho_cam_saida=26, taxa_aprendizado=0.01)
+    mlp = MLP(tam_cam_entrada=120, tam_camada_oculta=20, tam_camada_saida=26, taxa_aprendizado=0.01)
     acuracias, erros, val_acuracias, val_erros = mlp.treinar(X_treinamento_fold, Y_treinamento_fold, X_validacao_fold, Y_validacao_fold, epocas=2000, early_stopping_rounds=50)
 
     # Plotar as métricas
     mlp.plotar_metricas(acuracias, erros, val_acuracias, val_erros, fold, diretorio_saida)
 
     # Previsões para matriz de confusão
-    val_previsoes = mlp.prever(X_validacao_fold)
+    val_previsoes = mlp.prediz_acuracia(X_validacao_fold)
     mlp.plotar_matriz_confusao(Y_validacao_fold, val_previsoes, fold, diretorio_saida)
 
     # Armazenar os resultados de cada fold
@@ -219,11 +219,11 @@ for indices_validacao, indices_treinamento in folds:
     fold += 1
 
 # Treinar o MLP com os dados completos de treinamento e validação
-mlp_final = MLP(tamanho_cam_entrada=120, tamanho_cam_oculta=20, tamanho_cam_saida=26, taxa_aprendizado=0.01)
+mlp_final = MLP(tam_cam_entrada=120, tam_camada_oculta=20, tam_camada_saida=26, taxa_aprendizado=0.01)
 mlp_final.treinar(X_treinamento, Y_treinamento, X_validacao, Y_validacao, epocas=2000, early_stopping_rounds=50)
 
 # Fazer previsões no conjunto de teste
-previsoes_teste = mlp_final.prever(X_teste)
+previsoes_teste = mlp_final.prediz_acuracia(X_teste)
 
 # Calcular a acurácia no conjunto de teste
 acuracia_teste = mlp_final.calcular_acuracia(Y_teste, previsoes_teste)
@@ -234,9 +234,9 @@ mlp_final.plotar_matriz_confusao(Y_teste, previsoes_teste, 'Teste', diretorio_sa
 
 # Salvar hiperparâmetros
 hiperparametros = {
-    "tamanho_cam_entrada": 120,
-    "tamanho_cam_oculta": 20,
-    "tamanho_cam_saida": 26,
+    "tam_cam_entrada": 120,
+    "tam_camada_oculta": 20,
+    "tam_camada_saida": 26,
     "taxa_aprendizado": 0.01,
     "epocas": 2000
 }
