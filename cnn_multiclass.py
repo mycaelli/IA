@@ -47,30 +47,6 @@ class CNN:
     model.summary()
 
     return model
-  
-  def plot_history(self, history):
-    acc = history.history['accuracy']
-    loss = history.history['loss']
-    epochs = range(1, len(acc) + 1)
-
-    # Plotar acurácia
-    plt.figure(figsize=(12, 4))
-    plt.subplot(1, 2, 1)
-    plt.plot(epochs, acc, 'b', label='Acurácia de Treinamento')
-    plt.title('Acurácia de Treinamento')
-    plt.xlabel('Épocas')
-    plt.ylabel('Acurácia')
-    plt.legend()
-
-    # Plotar perda
-    plt.subplot(1, 2, 2)
-    plt.plot(epochs, loss, 'b', label='Perda de Treinamento')
-    plt.title('Perda de Treinamento')
-    plt.xlabel('Épocas')
-    plt.ylabel('Perda')
-    plt.legend()
-
-    plt.show()
 
   def train(self, path):
     train_generator = self.pre_processing(path)
@@ -88,7 +64,7 @@ class CNN:
     epochs=15,
     callbacks=[early_stopping]
     )
-    self.plot_history(history)
+    return history
 
 # organiza os subdiretorios
 
@@ -112,4 +88,24 @@ for image in os.listdir(base_dir):
 
 
 cnn = CNN(image_width=12, image_height=10, batch_size=26, classes=classes)
-cnn.train(path=target_dir)
+history = cnn.train(path=target_dir)
+
+acc = history.history['accuracy']
+loss = history.history['loss']
+epochs = range(1, len(acc) + 1)
+# Plotar acurácia
+plt.figure(figsize=(12, 4))
+plt.subplot(1, 2, 1)
+plt.plot(epochs, acc, 'b', label='Acurácia de Treinamento')
+plt.title('Acurácia de Treinamento')
+plt.xlabel('Épocas')
+plt.ylabel('Acurácia')
+plt.legend()
+# Plotar perda
+plt.subplot(1, 2, 2)
+plt.plot(epochs, loss, 'b', label='Perda de Treinamento')
+plt.title('Perda de Treinamento')
+plt.xlabel('Épocas')
+plt.ylabel('Perda')
+plt.legend()
+plt.show()
