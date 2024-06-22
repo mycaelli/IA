@@ -2,90 +2,112 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.callbacks import EarlyStopping
-
+from sklearn.metrics import confusion_matrix, classification_report
+import numpy as np
 import matplotlib.pyplot as plt
-
 import os
 import shutil
 
 class CNN:
-  def __init__ (self, image_width, image_height, batch_size, classes):
-    self.image_width = image_width
-    self.image_height = image_height
-    self.batch_size = batch_size
-    self.classes = classes
+    def __init__(self, image_width, image_height, batch_size, classes):
+        self.image_width = image_width
+        self.image_height = image_height
+        self.batch_size = batch_size
+        self.classes = classes
 
-  
-  def pre_processing(self, path):
-    # normalizacao dos pixels das imagens para valores entte 0 e 1
-    train_datagen = ImageDataGenerator(
-        rescale=1./255  # Apenas reescala, sem transformações geométricas
-    )
+    def pre_processing(self, path):
+        train_datagen = ImageDataGenerator(rescale=1./255)
+        train_generator = train_datagen.flow_from_directory(
+            directory=path,
+            target_size=(self.image_width,  self.image_height),
+            batch_size=self.batch_size,
+            class_mode='categorical',
+            color_mode='grayscale'
+        )
+        print("Número de amostras carregadas:", train_generator.samples)
+        return train_generator
 
-    train_generator = train_datagen.flow_from_directory(
-    directory=path,  # Caminho para o subdiretório contendo todas as imagens
-    target_size=(self.image_width,  self.image_height),
-    batch_size=self.batch_size,
-    class_mode='categorical',  # Não há classes a dividir
-    color_mode='grayscale'
-    )
+    def model(self):
+        model = Sequential([
+            Conv2D(32, (3, 3), activation='relu', input_shape=(self.image_width, self.image_height, 1)),
+            MaxPooling2D(2, 2),
+            Flatten(),
+            Dense(64, activation='relu'),
+            Dense(self.classes, activation='softmax')  # Ativação softmax para classificação multiclasse
+        ])
+        # Compilação do modelo com função de perda categorical_crossentropy
+        model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+        model.summary()
+        return model
 
-    print("Número de amostras carregadas:", train_generator.samples)
+    def train(self, path):
+        train_generator = self.pre_processing(path)
+        model = self.model()
+        early_stopping = EarlyStopping(monitor='val_loss', patience=8, verbose=1)
+        steps_per_epoch = max(1, train_generator.samples // self.batch_size)
+        history = model.fit(
+            train_generator,
+            steps_per_epoch=steps_per_epoch,
+            epochs=15,
+            callbacks=[early_stopping]
+        )
 
-    return train_generator
+        # Avaliação do modelo e plotagem da matriz de confusão
+        self.evaluate_model(model, train_generator)
 
-  def model(self):
-    model = Sequential([
-    Conv2D(32, (3, 3), activation='relu', input_shape=(self.image_width, self.image_height, 1)),
-    MaxPooling2D(2, 2),
-    Flatten(),
-    Dense(64, activation='relu'), # 26 classes
-    Dense(self.classes, activation='softmax')  # Ajuste para classificação multiclasse
-    ])
+        return history
 
-    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
-    model.summary()
+    def evaluate_model(self, model, generator):
+        generator.reset()
+        # Previsão utilizando o modelo treinado
+        predictions = model.predict(generator, steps=generator.samples // self.batch_size + 1)
+        # Conversão das previsões para rótulos de classe
+        y_pred = np.argmax(predictions, axis=1)
+        y_true = generator.classes
+        # Impressão do relatório de classificação
+        print(classification_report(y_true, y_pred, target_names=generator.class_indices.keys()))
+        # Cálculo e plotagem da matriz de confusão
+        cm = confusion_matrix(y_true, y_pred)
+        self.plot_confusion_matrix(cm, list(generator.class_indices.keys()))
 
-    return model
+    def plot_confusion_matrix(self, cm, classes):
+        plt.figure(figsize=(10, 7))
+        plt.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
+        plt.title('Matriz de Confusão')
+        plt.colorbar()
+        tick_marks = np.arange(len(classes))
+        plt.xticks(tick_marks, classes, rotation=45)
+        plt.yticks(tick_marks, classes)
+        fmt = 'd'
+        thresh = cm.max() / 2.
+        for i, j in np.ndindex(cm.shape):
+            plt.text(j, i, format(cm[i, j], fmt),
+                     horizontalalignment="center",
+                     color="white" if cm[i, j] > thresh else "black")
+        plt.ylabel('Classe verdadeira')
+        plt.xlabel('Classe predita')
+        plt.tight_layout()
+        plt.savefig('confusion_matrix_multiclass.png')
+        plt.show()
 
-  def train(self, path):
-    train_generator = self.pre_processing(path)
-    model = self.model()
-
-    # Early stopping para evitar overfitting
-    early_stopping = EarlyStopping(monitor='val_loss', patience=8, verbose=1)
-
-    # define que todas as imagens serao usadas em cada epoca
-    steps_per_epoch = max(1, train_generator.samples // self.batch_size)
-
-    history = model.fit(
-    train_generator,
-    steps_per_epoch=steps_per_epoch,
-    epochs=15,
-    callbacks=[early_stopping]
-    )
-    return history
-
-# organiza os subdiretorios
-
+# Organiza os subdiretórios
 base_dir = './content/'
 target_dir = './multiclass_images'
 classes = 26
 
-# cria o diretorio para cada classe (A...Z)
+# Cria o diretório para cada classe (A...Z)
 for i in range (1, classes + 1):
-  class_dir = os.path.join(target_dir, f'classe{i}')
-  os.makedirs(class_dir, exist_ok=True)
+    class_dir = os.path.join(target_dir, f'classe{i}')
+    os.makedirs(class_dir, exist_ok=True)
 
-# move cada imagem para o diretorio da classe correta
+# Move cada imagem para o diretório da classe correta
 for image in os.listdir(base_dir):
-  if image.endswith('.png'):
-    index = int(image.split('.')[0]) # pega o numero referente a cada imagem
-    class_num = (index % classes) + 1
-    src_path = os.path.join(base_dir, image)
-    dest_path = os.path.join(target_dir, f'classe{class_num}', image)
-    shutil.copy(src_path, dest_path)
-
+    if image.endswith('.png'):
+        index = int(image.split('.')[0])  # Pega o número referente a cada imagem
+        class_num = (index % classes) + 1
+        src_path = os.path.join(base_dir, image)
+        dest_path = os.path.join(target_dir, f'classe{class_num}', image)
+        shutil.copy(src_path, dest_path)
 
 cnn = CNN(image_width=12, image_height=10, batch_size=26, classes=classes)
 history = cnn.train(path=target_dir)
